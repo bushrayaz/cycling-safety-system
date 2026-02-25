@@ -1,0 +1,88 @@
+import os
+import tkinter as tk
+from tkinter import filedialog
+from ultralytics import YOLO
+
+# ==============================
+# SETTINGS
+# ==============================
+
+MODEL = r"C:\Users\sakri\YOLO\models\yolov8n.pt"
+SAVE_DIR = r"C:\Users\sakri\YOLO\runs"
+CONF_THRESHOLD = 0.5
+
+# Create save directory if not exists
+os.makedirs(SAVE_DIR, exist_ok=True)
+
+# ==============================
+# FUNCTIONS
+# ==============================
+
+def run_webcam():
+    model = YOLO(MODEL)
+    results = model.predict(
+        source=0,
+        conf=CONF_THRESHOLD,
+	show=True,
+        save=True,
+        project=SAVE_DIR,
+        name="predict",
+        exist_ok=True,
+        stream=True
+    )
+	# You MUST loop through results for stream=True
+    for r in results:
+        pass
+    print("Webcam detection complete!")
+
+
+def run_image():
+    file_path = filedialog.askopenfilename(
+        filetypes=[("Image Files", "*.jpg *.jpeg *.png")]
+    )
+    if file_path:
+        model = YOLO(MODEL)
+        model.predict(
+            source=file_path,
+            conf=CONF_THRESHOLD,
+            save=True,
+            project=SAVE_DIR,
+            name="predict",
+            exist_ok=True
+        )
+        print("Image detection complete!")
+
+
+def run_video():
+    file_path = filedialog.askopenfilename(
+        filetypes=[("Video Files", "*.mp4 *.avi *.mov")]
+    )
+    if file_path:
+        model = YOLO(MODEL)
+        model.predict(
+            source=file_path,
+            conf=CONF_THRESHOLD,
+            save=True,
+            project=SAVE_DIR,
+            name="predict",
+            exist_ok=True,
+            stream=True
+        )
+        print("Video detection complete!")
+
+
+# ==============================
+# GUI
+# ==============================
+
+root = tk.Tk()
+root.title("YOLOv8 Object Detection")
+root.geometry("300x200")
+
+tk.Label(root, text="YOLOv8 Detection", font=("Arial", 14)).pack(pady=10)
+
+tk.Button(root, text="Run Webcam", command=run_webcam, width=20).pack(pady=5)
+tk.Button(root, text="Detect Image", command=run_image, width=20).pack(pady=5)
+tk.Button(root, text="Detect Video", command=run_video, width=20).pack(pady=5)
+
+root.mainloop()
