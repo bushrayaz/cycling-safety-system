@@ -5,7 +5,7 @@ Test to verify that the ultrasonic sensor & camera module
 are working directly on the Raspberry Pi before integrating with main.py.
 
 Usage:
-    cd cycling-safety-system/src
+    cd cycling-safety-system/firmware/src
     python3 tests/test_sensors.py --ultrasonic      # test sensors only
     python3 tests/test_sensors.py --camera          # test camera only
     python3 tests/test_sensors.py --both            # test both together (fusion demo)
@@ -17,7 +17,7 @@ import sys
 import time
 import argparse
 
-# ── Allow running from the src/ directory ────────────────────────
+# Allow running from the src/ directory
 sys.path.insert(0, ".")
 
 DIRECTION_LABELS = {0: "NONE", 1: "FRONT", 2: "LEFT", 3: "RIGHT", 4: "REAR"}
@@ -70,7 +70,7 @@ def test_camera(loop_count: int = 0):
     from sensors.camera import CameraHazardDetector
 
     print("\n══ CAMERA TEST ══════════════════════════════════════")
-    print("  Watching for: car, truck, bus, motorcycle, bicycle, person")
+    print("  Watching for: car, truck, bus, pedestrian, bicycle")
     print("  Press Ctrl+C to stop.\n")
 
     cam = CameraHazardDetector()
@@ -85,7 +85,7 @@ def test_camera(loop_count: int = 0):
     except KeyboardInterrupt:
         print("\n[Test] Stopped by user.")
     finally:
-        cam.stop()
+        cam.shutdown()  # FIX: was cam.stop() — method is called shutdown()
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ def test_fusion(loop_count: int = 0):
         print("\n[Test] Stopped by user.")
     finally:
         usm.cleanup()
-        cam.stop()
+        cam.shutdown()  # FIX: was cam.stop() — method is called shutdown()
 
 
 # ─────────────────────────────────────────────────────────────────

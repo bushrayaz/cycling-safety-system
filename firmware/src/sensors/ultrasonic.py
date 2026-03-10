@@ -4,15 +4,15 @@ ultrasonic.py
 HC-SR04 Ultrasonic Sensor module for the Cycling Safety System.
 
 Handles:
-- Triggering and reading u pto 3 HC-SR04 ultrasonic sensors.
+- Triggering and reading up to 3 HC-SR04 ultrasonic sensors.
 - Spike rejection (ignores readings that jump from previous valid reading)
 - Median filtering over a rolling window of the last N valid readings to smooth out noise.
 - EMA filtering to give more weight to recent readings while still smoothing out noise.
 - Per-sensor confidence scores based on the consistency of recent readings
 
 Directions returned:
-- 1 =Front
-- 2 =Left
+- 1 = Front
+- 2 = Left
 - 3 = Right
 - 4 = Rear (optional atm, if rear sensor is implemented)
 
@@ -31,37 +31,39 @@ import RPi.GPIO as GPIO
 # --------------------------
 
 SENSOR_PINS = {
-    "left": {"trigger_pin": 23, "echo_pin": 24}, # left sensor
-    "right": {"trigger_pin": 17, "echo_pin": 27}, # right sensor
-    "front": {"trigger_pin": 5, "echo_pin": 6},   # front sensor
-    # 4: {"trigger_pin": 19, "echo_pin": 26}, # Rear sensor (optional)
+    "left":  {"trigger_pin": 23, "echo_pin": 24},  # left sensor
+    "right": {"trigger_pin": 17, "echo_pin": 27},  # right sensor
+    "front": {"trigger_pin": 5,  "echo_pin": 6},   # front sensor
+    # "rear": {"trigger_pin": 19, "echo_pin": 26},  # Rear sensor (optional)
 }
 
 # --------------------------
 # SYSTEM PARAMETERS
 # --------------------------
-SAFE_DISTANCE_CM      = 200.0   # > this -> safe
-WARNING_DISTANCE_CM   = 150.0   # object detected, but not an immediate threat
-HAZARD_DISTANCE_CM    = 100.0   # unsafe - trigger camera verification
-DANGER_DISTANCE_CM    = 50.0    # immediate danger 
+SAFE_DISTANCE_CM    = 200.0   # > this -> safe
+WARNING_DISTANCE_CM = 150.0   # object detected, but not an immediate threat
+HAZARD_DISTANCE_CM  = 100.0   # unsafe - trigger camera verification
+DANGER_DISTANCE_CM  =  50.0   # immediate danger
 
-MAX_SPIKE_CHANGE_CM   = 80.0    # spike rejection threshold
-WINDOW_SIZE           = 5       # median filter window size
-EMA_ALPHA             = 0.3     # EMA smoothing factor (0 < alpha < 1)
+MAX_SPIKE_CHANGE_CM = 80.0    # spike rejection threshold
+WINDOW_SIZE         = 5       # median filter window size
+EMA_ALPHA           = 0.3     # EMA smoothing factor (0 < alpha < 1)
 
-MIN_VALID_RANGE_CM    = 2.0     # HC_SR04 min reliable range 
-MAX_VALID_RANGE_CM    = 400.0   # HC_SR04 max reliable range
+MIN_VALID_RANGE_CM  = 2.0     # HC-SR04 min reliable range
+MAX_VALID_RANGE_CM  = 400.0   # HC-SR04 max reliable range
 
-VALIDATION_COUNT      = 3       # consecutive hazard reads needed to confirm
-TRIGGER_PULSE_S       = 0.00001 # 10µs trigger pulse
+VALIDATION_COUNT    = 3       # consecutive hazard reads needed to confirm
+TRIGGER_PULSE_S     = 0.00001 # 10µs trigger pulse
 
 
 # --------------------------
 class SensorChannel:
+    """Manages a single HC-SR04 sensor channel."""
+
     def __init__(self, name: str, trig_pin: int, echo_pin: int):
-        self.name      = name
-        self.trig_pin  = trig_pin
-        self.echo_pin  = echo_pin
+        self.name     = name
+        self.trig_pin = trig_pin
+        self.echo_pin = echo_pin
 
         # rolling buffer of raw valid readings
         self._history: list[float] = []
@@ -76,11 +78,13 @@ class SensorChannel:
         self.hazard_counter: int = 0
 
         # stats for confidence
-        self._valid_count   = 0
-        self._total_count   = 0
+        self._valid_count = 0
+        self._total_count = 0
 
         self._setup_gpio()
-#   GPIO ------------------------------------------------
+
+    # FIX: GPIO setup code is now properly inside _setup_gpio method
+    def _setup_gpio(self):
         GPIO.setup(self.trig_pin, GPIO.OUT)
         GPIO.setup(self.echo_pin, GPIO.IN)
         GPIO.output(self.trig_pin, GPIO.LOW)
@@ -118,7 +122,8 @@ class SensorChannel:
 
         return distance
 
-    # Validity check --------------------------------------
+    # FIX: added @staticmethod decorator since _is_valid doesn't use self
+    @staticmethod
     def _is_valid(d: float | None) -> bool:
         if d is None:
             return False
@@ -149,7 +154,7 @@ class SensorChannel:
             self._ema = EMA_ALPHA * median + (1 - EMA_ALPHA) * self._ema
         return self._ema
 
-    # Confidence score (0.0 – 1.0) --------------------------------------
+    # Confidence score (0.0 – 1.0) ----------------------
     def _compute_confidence(self) -> float:
         self._total_count += 1
 
@@ -168,7 +173,7 @@ class SensorChannel:
         confidence = (valid_rate + stability) / 2.0
         return round(confidence, 3)
 
-    # --------------------------------------
+    # ---------------------------------------------------
     def read(self) -> tuple[float | None, float]:
         """
         Take one measurement, run full pipeline.
@@ -187,7 +192,6 @@ class SensorChannel:
 
         # spike rejection
         if self._is_spike(raw):
-            # treat as invalid for this cycle
             confidence = self._compute_confidence()
             return self._ema, confidence  # return last known good EMA
 
@@ -196,7 +200,7 @@ class SensorChannel:
         self._prev_distance = raw
         self._update_history(raw)
 
-        median  = self._median_distance()
+        median   = self._median_distance()
         smoothed = self._update_ema(median)
         confidence = self._compute_confidence()
 
@@ -235,7 +239,8 @@ class UltrasonicManager:
         GPIO.setwarnings(False)
         self.channels: dict[str, SensorChannel] = {}
         for name, pins in SENSOR_PINS.items():
-            self.channels[name] = SensorChannel(name, pins["trig"], pins["echo"])
+            # FIX: use correct key names "trigger_pin" and "echo_pin"
+            self.channels[name] = SensorChannel(name, pins["trigger_pin"], pins["echo_pin"])
         print("[UltrasonicManager] Initialised sensors:", list(self.channels.keys()))
 
     def read_all(self) -> tuple[float | None, int, float]:
@@ -266,5 +271,3 @@ class UltrasonicManager:
         """Call this on shutdown to release GPIO resources."""
         GPIO.cleanup()
         print("[UltrasonicManager] GPIO cleaned up.")
-
-
