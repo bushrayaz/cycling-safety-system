@@ -1,0 +1,17 @@
+# Cycling Safety System - Raspberry Pi Dependencies
+# Install with: pip install -r requirements.txt --break-system-packages
+
+# GPIO control for ultrasonic sensors
+RPi.GPIO
+
+# Raspberry Pi camera interface
+picamera2
+
+# YOLO object detection (for camera hazard detection)
+ultralytics
+
+# Computer vision (used by YOLO and camera processing)
+opencv-python
+
+# Numerical computing (used by YOLO)
+numpy
